@@ -173,6 +173,13 @@ def preprocess_conversation(
 
 def infer_stop_tokens(tokenizer: transformers.PreTrainedTokenizer) -> List[str]:
     _maybe_add_sentinel_token(tokenizer)
+    
+    # Check if we can use chat template
+    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.AUTO:
+        if not hasattr(tokenizer, 'chat_template') or tokenizer.chat_template is None:
+            # Fallback to legacy method or return basic stop tokens
+            return [tokenizer.eos_token] if tokenizer.eos_token else []
+    
     template = tokenize_conversation(DUMMY_CONVERSATION, tokenizer, overrides={"gpt": SENTINEL_TOKEN})
 
     stop_tokens = {tokenizer.eos_token}

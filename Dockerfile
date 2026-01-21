@@ -6,7 +6,7 @@ RUN curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
     && sh ~/miniconda.sh -b -p /opt/conda \
     && rm ~/miniconda.sh
 
-ENV PATH /opt/conda/bin:$PATH
+ENV PATH=/opt/conda/bin:$PATH
 COPY pyproject.toml pyproject.toml
 COPY llava llava
 

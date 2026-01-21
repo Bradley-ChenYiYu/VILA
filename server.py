@@ -84,6 +84,7 @@ class ChatMessage(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     model: Literal[
+        "NVILA-8b",
         "NVILA-15B",
         "VILA1.5-3B",
         "VILA1.5-3B-AWQ",
@@ -160,11 +161,52 @@ async def lifespan(app: FastAPI):
     model_path = app.args.model_path
     model_name = get_model_name_from_path(model_path)
     tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, model_name, None)
+
+    # `conv_mode=auto` maps to a template with `SeparatorStyle.AUTO`, which is not
+    # supported by `Conversation.get_prompt()` and will raise.
+    if getattr(app.args, "conv_mode", None) == "auto":
+        selected = None
+        try:
+            for key, value in conversation.CONVERSATION_MODE_MAPPING.items():
+                if key in (model_name or "").lower():
+                    selected = value
+                    break
+        except Exception:
+            selected = None
+
+        if not selected:
+            selected = "vicuna_v1"
+            logger.warning(
+                f"conv_mode=auto could not be resolved from model '{model_name}'. "
+                f"Falling back to '{selected}'."
+            )
+        else:
+            logger.info(f"Resolved conv_mode=auto to '{selected}' for model '{model_name}'.")
+
+        app.args.conv_mode = selected
+
     print(f"Model {model_name} loaded successfully. Context length: {context_len}")
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/")
+async def read_root():
+    return {
+        "message": "Welcome to the VILA API. This is for internal use only. Please use /chat/completions for chat completions.",
+    }
+
+
+@app.get("/models")
+async def get_models():
+    # Prefer the actually loaded model name when available.
+    models = [model_name] if model_name else list(VILA_MODELS)
+    return {
+        "object": "list",
+        "data": [{"id": mid, "object": "model", "owned_by": "VILA"} for mid in models],
+    }
 
 
 # Load model upon startup
