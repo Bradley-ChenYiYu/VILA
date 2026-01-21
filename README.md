@@ -312,6 +312,84 @@ print(response.choices[0].message.content)
 
 <sup>NOTE: This API server is intended for evaluation purposes only and has not been optimized for production use. SGLang support is coming on the way.</sup>
 
+#### My docker run example  
+
+##### File server  
+
+To send images/videos to VILA server  
+
+```bash
+docker run -it --rm -p 8010:8010 \
+  --name file_site \
+  ubuntu bash -c "apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 && \
+  ln -snf /usr/share/zoneinfo/Asia/Taipei /etc/localtime && echo Asia/Taipei > /etc/timezone && \
+  dpkg-reconfigure -f noninteractive tzdata && \
+  python3 -m http.server 8010"
+```
+
+To copy files into the File server  
+
+```bash
+docker cp /mnt/c/Users/Bradley/Desktop/videoplayback.mp4 file_site:/media
+```
+
+##### VILA server  
+
+In the VILA directory  
+
+```bash
+docker build -t vila-server:latest . && \
+ docker run --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 && \
+ -v ./hub:/root/.cache/huggingface/hub && \
+ -it --rm -p 8000:8000 && \
+ -e VILA_MODEL_PATH=Efficient-Large-Model/NVILA-8b && \
+ -e VILA_CONV_MODE=auto && \
+ vila-server:latest
+```
+
+To test the model, visit site http://localhost:8000/docs  
+
+###### Example json request  
+
+```json
+{
+  "model": "NVILA-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello"
+    }
+  ],
+  "max_tokens": 512,
+  "top_p": 0.9,
+  "temperature": 0.2,
+  "stream": false,
+  "use_cache": true,
+  "num_beams": 1
+}
+```
+
+```json
+{
+  "model": "NVILA-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+                {"type": "text", "text": "What’s in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "https://blog.logomyway.com/wp-content/uploads/2022/01/NVIDIA-logo.jpg"
+                    }
+                }
+      ]
+    }
+  ]
+}
+```
+
 ## Checkpoints
 
 We release the following models:
